@@ -1,4 +1,4 @@
-import { BigInt } from "@graphprotocol/graph-ts"
+import { BigInt, Address } from "@graphprotocol/graph-ts"
 import {
   CND_contract,
   ClaimedTokens,
@@ -6,75 +6,56 @@ import {
   NewCloneToken,
   Approval
 } from "../generated/CND_contract/CND_contract"
-import { ExampleEntity } from "../generated/schema"
+import { client, transfer, approval, claim} from "../generated/schema"
 
 export function handleClaimedTokens(event: ClaimedTokens): void {
-  // Entities can be loaded from the store using a string ID; this ID
-  // needs to be unique across all entities of the same type
-  let entity = ExampleEntity.load(event.transaction.from.toHex())
-
-  // Entities only exist after they have been saved to the store;
-  // `null` checks allow to create entities on demand
+  let entity = claim.load(event.transaction.hash.toHex())
   if (entity == null) {
-    entity = new ExampleEntity(event.transaction.from.toHex())
-
-    // Entity fields can be set using simple assignments
-    entity.count = BigInt.fromI32(0)
+    entity = new claim(event.transaction.hash.toHex())
   }
-
-  // BigInt and BigDecimal math are supported
-  entity.count = entity.count + BigInt.fromI32(1)
-
-  // Entity fields can be set based on event parameters
-  entity._token = event.params._token
-  entity._controller = event.params._controller
-
-  // Entities can be written to the store with `.save()`
+  entity.amount=event.params._amount
   entity.save()
-
-  // Note: If a handler doesn't require existing field values, it is faster
-  // _not_ to load the entity from the store. Instead, create it fresh with
-  // `new Entity(...)`, set the fields that should be updated and save the
-  // entity back to the store. Fields that were not set or unset remain
-  // unchanged, allowing for partial updates to be applied.
-
-  // It is also possible to access smart contracts from mappings. For
-  // example, the contract that has emitted the event can be connected to
-  // with:
-  //
-  // let contract = Contract.bind(event.address)
-  //
-  // The following functions can then be called on this contract to access
-  // state variables and other data:
-  //
-  // - contract.name(...)
-  // - contract.approve(...)
-  // - contract.creationBlock(...)
-  // - contract.totalSupply(...)
-  // - contract.transferFrom(...)
-  // - contract.decimals(...)
-  // - contract.balanceOfAt(...)
-  // - contract.version(...)
-  // - contract.createCloneToken(...)
-  // - contract.balanceOf(...)
-  // - contract.parentToken(...)
-  // - contract.generateTokens(...)
-  // - contract.symbol(...)
-  // - contract.totalSupplyAt(...)
-  // - contract.transfer(...)
-  // - contract.transfersEnabled(...)
-  // - contract.IS_CND_CONTRACT_MAGIC_NUMBER(...)
-  // - contract.parentSnapShotBlock(...)
-  // - contract.approveAndCall(...)
-  // - contract.destroyTokens(...)
-  // - contract.allowance(...)
-  // - contract.tokenFactory(...)
-  // - contract.controller(...)
 }
 
 
 export function handleNewCloneToken(event: NewCloneToken): void {}
 
-export function handleApproval(event: Approval): void {}
+export function handleApproval(event: Approval): void {
+  let own=get_client(event.params._owner)
+  let spender=get_client(event.params._owner)
+  let entity = approval.load(event.transaction.hash.toHex())
+  if (entity == null) {
+    entity = new approval(event.transaction.hash.toHex())
+  }
+  entity.owner=own.id
+  entity.spender=spender.id
+  entity.value=event.params._amount
+  entity.save()
+}
 
-export function handleTransfer(event: Transfer): void {}
+export function handleTransfer(event: Transfer): void {
+  let sender = get_client(event.params._from)
+  sender.transfers_count=sender.transfers_count+BigInt.fromI32(1)
+  sender.save()
+  let reciever = get_client(event.params._to)
+  let entity = transfer.load(event.transaction.hash.toHex())
+  if (entity == null) {
+    entity = new transfer(event.transaction.hash.toHex())
+  }
+  entity.amount=event.params._amount
+  entity.from=sender.id
+  entity.to=reciever.id
+  entity.timestamp=event.block.timestamp
+  entity.save()
+}
+
+
+export function get_client(address: Address): client {
+  let Client = client.load(address.toHexString())
+  if (Client == null) {
+    Client = new client(address.toHexString())
+    Client.transfers_count = BigInt.fromI32(0)
+    Client.save();
+  }
+  return Client as client;
+}

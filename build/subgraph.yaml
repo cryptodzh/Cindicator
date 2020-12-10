@@ -1,6 +1,6 @@
 specVersion: 0.0.2
 schema:
-  file: ./schema.graphql
+  file: schema.graphql
 dataSources:
   - kind: ethereum/contract
     name: CND_contract
@@ -20,7 +20,7 @@ dataSources:
         - Approval
       abis:
         - name: CND_contract
-          file: ./abis/CND_contract.json
+          file: CND_contract/abis/CND_contract.json
       eventHandlers:
         - event: ClaimedTokens(indexed address,indexed address,uint256)
           handler: handleClaimedTokens
@@ -30,4 +30,4 @@ dataSources:
           handler: handleNewCloneToken
         - event: Approval(indexed address,indexed address,uint256)
           handler: handleApproval
-      file: ./src/mapping.ts
+      file: CND_contract/CND_contract.wasm
